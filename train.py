@@ -12,7 +12,8 @@ from torch.utils.data import DataLoader
 import yaml
 from tensorboardX import SummaryWriter
 from model import CNN
-from CVdevKit.core import (init_dist, broadcast_params, average_gradients, load_state_ckpt, load_state, save_checkpoint, LRScheduler)
+from CVdevKit.core import (init_dist, broadcast_params, average_gradients,
+                           load_state_ckpt, load_state, save_checkpoint, LRScheduler)
 from CVdevKit.dataset.imagenet_dataset import ColorAugmentation, ImagenetDataset
 
 parser = argparse.ArgumentParser(
@@ -28,6 +29,7 @@ parser.add_argument('--resume', default=False, help='resume')
 parser.add_argument('-e', '--evaluate', dest='evaluate', action='store_true',
                     help='evaluate model on validation set')
 args = parser.parse_args()
+
 
 def main():
     global args, best_prec1
@@ -72,7 +74,8 @@ def main():
     if args.evaluate:
         load_state_ckpt(args.checkpoint_path, model)
     else:
-        best_prec1, start_epoch = load_state(model_dir, model, optimizer=optimizer)
+        best_prec1, start_epoch = load_state(
+            model_dir, model, optimizer=optimizer)
     if args.rank == 0:
         writer = SummaryWriter(model_dir)
     else:
@@ -126,7 +129,8 @@ def main():
         train_sampler.set_epoch(epoch)
 
         # train for one epoch
-        train(train_loader, model, criterion, optimizer, lr_scheduler, epoch, writer)
+        train(train_loader, model, criterion,
+              optimizer, lr_scheduler, epoch, writer)
 
         # evaluate on validation set
         prec1 = validate(val_loader, model, criterion, epoch, writer)
@@ -137,11 +141,12 @@ def main():
             best_prec1 = max(prec1, best_prec1)
             save_checkpoint(model_dir, {
                 'epoch': epoch + 1,
-                'model': args.config.rsplit('/',1)[-1].split('.yaml')[0],
+                'model': args.config.rsplit('/', 1)[-1].split('.yaml')[0],
                 'state_dict': model.state_dict(),
                 'best_prec1': best_prec1,
                 'optimizer': optimizer.state_dict(),
             }, is_best)
+
 
 def train(train_loader, model, criterion, optimizer, lr_scheduler, epoch, writer):
     batch_time = AverageMeter()
@@ -160,7 +165,7 @@ def train(train_loader, model, criterion, optimizer, lr_scheduler, epoch, writer
         # measure data loading time
         data_time.update(time.time() - end)
         lr_scheduler.update(i, epoch)
-        target = target.cuda(async=True)
+        target = target.cuda(non_blocking=True)
         input_var = torch.autograd.Variable(input.cuda())
         target_var = torch.autograd.Variable(target)
         # compute output
@@ -199,10 +204,11 @@ def train(train_loader, model, criterion, optimizer, lr_scheduler, epoch, writer
                   'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
                   'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'
                   'Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
-                epoch, i, len(train_loader), batch_time=batch_time,
-                data_time=data_time, loss=losses, top1=top1, top5=top5))
+                      epoch, i, len(train_loader), batch_time=batch_time,
+                      data_time=data_time, loss=losses, top1=top1, top5=top5))
             niter = epoch * len(train_loader) + i
-            writer.add_scalar('learning_rate', optimizer.param_groups[0]['lr'], niter)
+            writer.add_scalar(
+                'learning_rate', optimizer.param_groups[0]['lr'], niter)
             writer.add_scalar('Train/Avg_Loss', losses.avg, niter)
             writer.add_scalar('Train/Avg_Top1', top1.avg / 100.0, niter)
             writer.add_scalar('Train/Avg_Top5', top5.avg / 100.0, niter)
@@ -222,7 +228,7 @@ def validate(val_loader, model, criterion, epoch, writer):
     with torch.no_grad():
         end = time.time()
         for i, (input, target) in enumerate(val_loader):
-            target = target.cuda(async=True)
+            target = target.cuda(non_blocking=True)
             input_var = torch.autograd.Variable(input.cuda(), volatile=True)
             target_var = torch.autograd.Variable(target, volatile=True)
 
@@ -255,8 +261,8 @@ def validate(val_loader, model, criterion, epoch, writer):
                       'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
                       'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'
                       'Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
-                    i, len(val_loader), batch_time=batch_time, loss=losses,
-                    top1=top1, top5=top5))
+                          i, len(val_loader), batch_time=batch_time, loss=losses,
+                          top1=top1, top5=top5))
         if rank == 0:
             print(' * Prec@1 {top1.avg:.3f} Prec@5 {top5.avg:.3f}'
                   .format(top1=top1, top5=top5))
@@ -267,6 +273,7 @@ def validate(val_loader, model, criterion, epoch, writer):
             writer.add_scalar('Eval/Avg_Top5', top5.avg / 100.0, niter)
 
     return top1.avg
+
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
@@ -286,6 +293,7 @@ class AverageMeter(object):
         self.count += n
         self.avg = self.sum / self.count
 
+
 def accuracy(output, target, topk=(1,)):
     """Computes the precision@k for the specified values of k"""
     maxk = max(topk)
@@ -300,6 +308,7 @@ def accuracy(output, target, topk=(1,)):
         correct_k = correct[:k].view(-1).float().sum(0, keepdim=True)
         res.append(correct_k.mul_(100.0 / batch_size))
     return res
+
 
 if __name__ == '__main__':
     main()
